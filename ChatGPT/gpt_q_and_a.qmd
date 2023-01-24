@@ -10,3 +10,5 @@ Question: What is the sky?
 Answer: The answer to your question depends on the specific context of the situation. Please provide more information so that we can better answer your question.
 
 I dont know the truth.
+
+When the moon shines.
