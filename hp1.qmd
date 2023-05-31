@@ -1,0 +1,226 @@
+---
+title: "Hog Production (Fable)"
+author: "ODH"
+format: pdf
+execute:
+  echo: false
+  warning: false
+editor: visual
+---
+
+```{r}
+library(fable)
+library(tidyverse)
+library(tsibble)
+library(feasts)
+library(forecast)
+```
+
+```{r}
+hp <- read_csv("exploring-data/hp.csv")
+hp <- tibble(hp = hp$HP, date = seq(from = as.Date("2013/1/1"), by = "quarter", length.out = 40))
+hp <- hp |>
+  mutate(quarter = yearquarter(date)) |>
+  select(-date) |>
+  as_tsibble(index = quarter)
+hp_ts <- ts(hp$hp, start = 2013, frequency = 4)
+```
+
+# Hog Production Time Series
+
+```{r}
+autoplot(hp, hp)
+```
+
+# Seasonal Plot
+
+```{r}
+hp |> gg_season(hp, period = "year") 
+```
+
+# STL Decomposition
+
+```{r}
+hp |>
+  model(
+    STL(hp ~ trend() +
+          season(),
+    robust = TRUE)) |>
+  components() |>
+  autoplot()
+```
+
+# Test of Stationarity
+
+## The Data
+
+```{r}
+hp |>
+  features(hp, unitroot_kpss)
+```
+
+The pvalue is less than 0.05. The data is not stationary. The data needs to be differenced.
+
+## 1st Order Differencing
+
+```{r}
+hp |>
+  features(difference(hp), unitroot_kpss)
+```
+
+The pvalue is less than 0.05. The data is not stationary. The data needs to be differenced.
+
+## 2nd Order Differencing
+
+```{r}
+hp |>
+  features(difference(difference(hp)), unitroot_kpss)
+```
+
+The pvalue is greater than 0.05. The data is stationary.
+
+## ACF and PACF
+
+```{r}
+hp |>
+  gg_tsdisplay(difference(difference(hp)), plot_type='partial', lag = 24)
+```
+
+ACF suggests an ARIMA(0,2,3) and PACF suggests an ARIMA(4,2,0).
+
+# Models
+
+```{r}
+hp_fit <- hp |>
+  model(arima023 = ARIMA(hp ~ pdq(0,2,3)),
+        arima420 = ARIMA(hp ~ pdq(4,2,0)),
+        arima021 = ARIMA(hp ~ pdq(0,2,1)),
+        arima120 = ARIMA(hp ~ pdq(1,2,0)),
+        arima121 = ARIMA(hp ~ pdq(1,2,1)),
+        arima321 = ARIMA(hp ~ pdq(3,2,1)),
+        arima021100 = ARIMA(hp ~ pdq(0,2,1) + PDQ(1,0,0)),
+        arima121100 = ARIMA(hp ~ pdq(1,2,1) + PDQ(1,0,0)),
+        stepwise = ARIMA(hp),
+        search = ARIMA(hp, stepwise=FALSE),
+        search1 = ARIMA(hp, stepwise=FALSE, approximation = FALSE))
+```
+
+```{r}
+fit1 <- Arima(hp_ts, order=c(0,2,1))
+fit1
+```
+
+```{r}
+autoplot(fit1)
+```
+
+```{r}
+glance(hp_fit) |>
+  arrange(AICc) |>
+  select(.model:BIC)
+```
+
+The stepwise and search models are autoarima models. They are actually the same model. The model is shown below.
+
+```{r}
+hp_fit |>
+  select(arima021)
+```
+
+```{r}
+gg_arma(hp_fit |>
+          select(arima021))
+```
+
+```{r}
+hp_fit |>
+  select(arima121) |>
+  report()
+```
+
+The best model is the autoarima model with the least AIC.
+
+# Residual Checking
+
+## arima023
+
+```{r}
+hp_fit |>
+  select(arima023) |>
+  gg_tsresiduals()
+```
+
+ACF are within the threshold limits, indicating that residuals are behaving like white noise.
+
+```{r}
+augment(hp_fit) |>
+  filter(.model=='arima023') |>
+  features(.innov, ljung_box)
+```
+
+The pvalue is greater than 0.05, suggesting that the residuals are white noise.
+
+## arima420
+
+```{r}
+hp_fit |>
+  select(arima420) |>
+  gg_tsresiduals()
+```
+
+ACF are within the threshold limits, indicating that residuals are behaving like white noise.
+
+```{r}
+augment(hp_fit) |>
+  filter(.model=='arima420') |>
+  features(.innov, ljung_box)
+```
+
+The pvalue is greater than 0.05, suggesting that the residuals are white noise.
+
+## AutoARIMA
+
+```{r}
+hp_fit |>
+  select(search) |>
+  gg_tsresiduals()
+```
+
+ACF are within the threshold limits, indicating that residuals are behaving like white noise.
+
+```{r}
+augment(hp_fit) |>
+  filter(.model=='search') |>
+  features(.innov, ljung_box)
+```
+
+The pvalue is greater than 0.05, suggesting that the residuals are white noise.
+
+# 5 Quarters Forecast
+
+## AutoARIMA Forecast
+
+```{r}
+hp_fit |>
+  forecast(h=5) |>
+  filter(.model=='search') |>
+  autoplot(hp)
+```
+
+## ARIMA(4,2,0) Forecast
+
+```{r}
+hp_fit |>
+  forecast(h=5) |>
+  filter(.model=='arima420') |>
+  autoplot(hp)
+```
+
+## ARIMA(0,2,3) Forecast
+
+```{r}
+hp_fit |>
+  forecast(h=5) |>
+  filter(.model=='arima023') |>
+  autoplot(hp)
+```

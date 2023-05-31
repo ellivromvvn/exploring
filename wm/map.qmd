@@ -1,0 +1,72 @@
+---
+title: "A Simple Interactive Map of World Ethnography"
+author: Orville Hombrebueno
+format: html
+editor: visual
+execute: 
+  warning: false
+---
+
+## Loading the Packages
+
+```{r}
+suppressPackageStartupMessages(library(ggiraph))
+suppressPackageStartupMessages(library(tidyverse))
+```
+
+## Importing the Data
+
+```{r}
+data <- read_csv("data.csv")
+```
+
+```{r}
+head(data)
+```
+
+## World Map Data
+
+```{r}
+world <- map_data("world")
+```
+
+```{r}
+head(world)
+```
+
+## Adding Tooltip
+
+```{r}
+data <- data |>
+  mutate(tooltip_text = paste0(toupper(name), "\n", people,
+                               "\n", study))
+```
+
+## The Plot
+
+```{r}
+p <- ggplot() +
+  geom_map(data = world, map = world, 
+           aes(long, lat, map_id = region),
+           color = "white", fill = "lightgreen", size = 0.1) +
+  geom_point(data = data, aes(long, lat, color = name, size = 3),
+             alpha = 0.7) +
+  geom_point_interactive(data = data, color = "black",
+                         fill="#0072B2", size = 3,
+                         aes(long, lat, tooltip = tooltip_text,
+                             data_id = name)) +
+  theme_void() +
+  theme(legend.position = "none") +
+  ggtitle("Map of World Ethnography") +
+  theme(plot.title = element_text(color = "brown", size = 30,
+                                  face = "bold"))
+```
+
+## Print
+
+```{r}
+girafe(ggobj = p, width_svg = 10, height_svg = 6)
+```
+
+```         
+```

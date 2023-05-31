@@ -1,0 +1,96 @@
+---
+title: "Hog Production"
+author: ODH
+format: pdf
+execute:
+  echo: false
+  warning: false
+editor: visual
+---
+
+# Data
+
+```{r}
+library(forecast) #load the forecast package
+library(ggplot2) #load the ggplot2 package
+library(readr) #load the readr package
+library(zoo) #load the zoo package
+```
+
+# Hog production time series
+
+```{r}
+hp <- read_csv("exploring-data/hp.csv")
+hp_ts <- ts(hp$HP, freq=4, start=2013)
+hp_ts %>%
+  autoplot()
+```
+
+# Decomposition
+
+```{r}
+hp_decomp <- decompose(hp_ts, type="additive")
+autoplot(hp_decomp)
+```
+
+# Model 1
+
+```{r}
+model1 <- forecast(hp_ts)
+model1 %>%
+  forecast(h=4) %>%
+  autoplot()
+```
+
+# Model 2
+
+```{r}
+model2 <- tslm(hp_ts ~ trend + season)
+fcast <- forecast(model2)
+autoplot(fcast)
+```
+
+# Model 3
+
+```{r}
+model3 <- auto.arima(hp_ts)
+model3 %>%
+  forecast(h=4) %>%
+  autoplot()
+```
+
+# Model 4
+
+```{r}
+model4 <- auto.arima(hp_ts, seasonal=FALSE,
+stepwise=FALSE, approximation=FALSE)
+model4 %>%
+  forecast(h=4) %>%
+  autoplot()
+```
+
+# Accuracy
+
+## Model 1
+
+```{r}
+accuracy(model1)
+```
+
+## Model 2
+
+```{r}
+accuracy(model2)
+```
+
+## Model 3
+
+```{r}
+accuracy(model3)
+```
+
+## Model 4
+
+```{r}
+accuracy(model4)
+```

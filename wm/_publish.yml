@@ -1,0 +1,4 @@
+- source: map.qmd
+  quarto-pub:
+    - id: b8b88367-7e48-4880-9a8e-bc91e16e5aa1
+      url: 'https://quartopub.com/sites/mild-orville/a-simple-interactive-map-of-world-ethnography'
